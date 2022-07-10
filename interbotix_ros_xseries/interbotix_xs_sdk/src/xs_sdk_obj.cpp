@@ -3,7 +3,7 @@
 /// @brief Constructor for the InterbotixRobotXS
 /// @param node_handle - ROS NodeHandle
 InterbotixRobotXS::InterbotixRobotXS(ros::NodeHandle *node_handle, bool &success)
-    : node(*node_handle)
+    : node(*node_handle), pause(false)
 {
   if (!robot_get_motor_configs())
   {
@@ -234,54 +234,56 @@ void InterbotixRobotXS::robot_reboot_motors(std::string const& cmd_type, std::st
 /// @details - commands are processed differently based on the operating mode specified for the motor group
 void InterbotixRobotXS::robot_write_commands(std::string const& name, std::vector<float> commands)
 {
-  if (commands.size() != group_map[name].joint_num)
-  {
-    ROS_ERROR("[xs_sdk] Number of commands (%ld) does not match the number of joints in group '%s' (%d). Will not execute.", commands.size(), name.c_str(), group_map[name].joint_num);
-    return;
-  }
-  std::string mode = group_map[name].mode;
-  int32_t dynamixel_commands[commands.size()];
+  if(!pause) {
+    if (commands.size() != group_map[name].joint_num)
+    {
+      ROS_ERROR("[xs_sdk] Number of commands (%ld) does not match the number of joints in group '%s' (%d). Will not execute.", commands.size(), name.c_str(), group_map[name].joint_num);
+      return;
+    }
+    std::string mode = group_map[name].mode;
+    int32_t dynamixel_commands[commands.size()];
 
-  if (mode == "position" || mode == "ext_position" || mode == "current_based_position" || mode == "linear_position")
-  {
-    for (size_t i{0}; i < commands.size(); i++)
+    if (mode == "position" || mode == "ext_position" || mode == "current_based_position" || mode == "linear_position")
     {
-      if (mode == "linear_position")
-        commands.at(i) = robot_convert_linear_position_to_radian(group_map[name].joint_names.at(i), commands.at(i));
-      dynamixel_commands[i] = dxl_wb.convertRadian2Value(group_map[name].joint_ids.at(i), commands.at(i));
-      ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      for (size_t i{0}; i < commands.size(); i++)
+      {
+        if (mode == "linear_position")
+          commands.at(i) = robot_convert_linear_position_to_radian(group_map[name].joint_names.at(i), commands.at(i));
+        dynamixel_commands[i] = dxl_wb.convertRadian2Value(group_map[name].joint_ids.at(i), commands.at(i));
+        ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      }
+      dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_POSITION, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
     }
-    dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_POSITION, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
-  }
-  else if (mode == "velocity")
-  {
-    for (size_t i{0}; i < commands.size(); i++)
+    else if (mode == "velocity")
     {
-      dynamixel_commands[i] = dxl_wb.convertVelocity2Value(group_map[name].joint_ids.at(i), commands.at(i));
-      ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      for (size_t i{0}; i < commands.size(); i++)
+      {
+        dynamixel_commands[i] = dxl_wb.convertVelocity2Value(group_map[name].joint_ids.at(i), commands.at(i));
+        ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      }
+      dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_VELOCITY, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
     }
-    dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_VELOCITY, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
-  }
-  else if (mode == "current")
-  {
-    for (size_t i{0}; i < commands.size(); i++)
+    else if (mode == "current")
     {
-      dynamixel_commands[i] = dxl_wb.convertCurrent2Value(commands.at(i));
-      ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      for (size_t i{0}; i < commands.size(); i++)
+      {
+        dynamixel_commands[i] = dxl_wb.convertCurrent2Value(commands.at(i));
+        ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      }
+      dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_CURRENT, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
     }
-    dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_CURRENT, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
-  }
-  else if (mode == "pwm")
-  {
-    for (size_t i{0}; i < commands.size(); i++)
+    else if (mode == "pwm")
     {
-      dynamixel_commands[i] = int32_t(commands.at(i));
-      ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      for (size_t i{0}; i < commands.size(); i++)
+      {
+        dynamixel_commands[i] = int32_t(commands.at(i));
+        ROS_DEBUG("[xs_sdk::robot_write_commands] ID: %d, writing %s command %d.", group_map[name].joint_ids.at(i), mode.c_str(), dynamixel_commands[i]);
+      }
+      dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_PWM, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
     }
-    dxl_wb.syncWrite(SYNC_WRITE_HANDLER_FOR_GOAL_PWM, group_map[name].joint_ids.data(), group_map[name].joint_num, dynamixel_commands, 1);
+    else
+      ROS_ERROR("[xs_sdk] Invalid command for argument 'mode' while commanding joint group.");
   }
-  else
-    ROS_ERROR("[xs_sdk] Invalid command for argument 'mode' while commanding joint group.");
 }
 
 /// @brief Command a desired motor with the specified command
@@ -844,6 +846,7 @@ void InterbotixRobotXS::robot_init_subscribers(void)
   sub_command_group = node.subscribe("commands/joint_group", 5, &InterbotixRobotXS::robot_sub_command_group, this);
   sub_command_single = node.subscribe("commands/joint_single", 5, &InterbotixRobotXS::robot_sub_command_single, this);
   sub_command_traj = node.subscribe("commands/joint_trajectory", 5, &InterbotixRobotXS::robot_sub_command_traj, this);
+  sub_emergency = node.subscribe("/RosAria/motors_state", 5, &InterbotixRobotXS::robot_sub_emergency, this);
 }
 
 /// @brief Initialize ROS Services
@@ -895,6 +898,14 @@ void InterbotixRobotXS::robot_sub_command_group(const interbotix_xs_msgs::JointG
 void InterbotixRobotXS::robot_sub_command_single(const interbotix_xs_msgs::JointSingleCommand &msg)
 {
   robot_write_joint_command(msg.name, msg.cmd);
+}
+
+/// @brief ROS Subscriber callback function to emergency
+/// @param msg - Bool
+/// @details - refer to the message definition for details
+void InterbotixRobotXS::robot_sub_emergency(const std_msgs::Bool &msg)
+{
+  pause = !msg.data;
 }
 
 /// @brief ROS Subscriber callback function to command a joint trajectory

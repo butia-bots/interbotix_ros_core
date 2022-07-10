@@ -5,6 +5,7 @@
 #include <urdf/model.h>
 #include <unordered_map>
 #include <yaml-cpp/yaml.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/JointState.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
@@ -166,6 +167,7 @@ public:
 
 private:
 
+  bool pause;
   int timer_hz;                                                                 // Frequency at which the ROS Timer publishing joint states should run
   bool pub_states;                                                              // Boolean that determines if joint states should be published;
   bool execute_joint_traj;                                                      // Boolean that changes value when a JointTrajectoryCommand begins and ends execution
@@ -179,7 +181,8 @@ private:
   ros::Publisher pub_joint_states;                                              // ROS Publisher responsible for publishing joint states
   ros::Subscriber sub_command_group;                                            // ROS Subscriber responsible for subscribing to JointGroupCommand messages
   ros::Subscriber sub_command_single;                                           // ROS Subscriber responsible for subscribing to JointSingleCommand messages
-  ros::Subscriber sub_command_traj;                                             // ROS Subscriber responsible for subscribing to JointTrajectoryCommand messages
+  ros::Subscriber sub_command_traj; 
+  ros::Subscriber sub_emergency;                                            // ROS Subscriber responsible for subscribing to JointTrajectoryCommand messages
   ros::ServiceServer srv_motor_gains;                                           // ROS Service Server used to set motor PID gains
   ros::ServiceServer srv_operating_modes;                                       // ROS Service Server used to set motor operating modes
   ros::ServiceServer srv_set_registers;                                         // ROS Service Server used to set any motor register
@@ -254,6 +257,11 @@ private:
   /// @param msg - JointSingleCommand message dictating the joint to command along with the actual command
   /// @details - refer to the message definition for details
   void robot_sub_command_single(const interbotix_xs_msgs::JointSingleCommand &msg);
+
+  /// @brief ROS Subscriber callback function to emergency
+  /// @param msg - Bool
+  /// @details - refer to the message definition for details
+  void robot_sub_emergency(const std_msgs::Bool &msg);
 
   /// @brief ROS Subscriber callback function to command a joint trajectory
   /// @param msg - JointTrajectoryCommand message dictating the joint(s) to command along with the desired trajectory
