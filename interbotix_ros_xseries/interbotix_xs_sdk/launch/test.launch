@@ -1,0 +1,12 @@
+<launch>
+    <node
+        name="xs_sdk"
+        pkg="interbotix_xs_sdk"
+        type="xs_sdk"
+        output="screen"
+        ns="doris_arm">
+        <param name="motor_configs"                   value="$(find interbotix_xs_sdk)/config/doris_arm.yaml"/>
+        <param name="mode_configs"                    value="$(find interbotix_xsarm_control)/config/modes.yaml"/>
+        <param name="load_configs"                    value="true"/>
+    </node>
+</launch>

@@ -231,7 +231,7 @@ private:
   void robot_init_SDK_handlers(void);
 
   /// @brief Loads a 'mode_configs' yaml file containing desired operating modes and sets up the motors accordingly
-  void robot_init_operating_modes(void);
+  void robot_init_operating_modes(std::string operating_mode_forced="");
 
   /// @brief Initialize ROS Publishers
   void robot_init_publishers(void);

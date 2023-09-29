@@ -775,7 +775,7 @@ void InterbotixRobotXS::robot_init_SDK_handlers(void)
 }
 
 /// @brief Loads a 'mode_configs' yaml file containing desired operating modes and sets up the motors accordingly
-void InterbotixRobotXS::robot_init_operating_modes(void)
+void InterbotixRobotXS::robot_init_operating_modes(std::string operating_mode_forced)
 {
   YAML::Node all_shadows = motor_configs["shadows"];
   for (YAML::const_iterator master_itr = all_shadows.begin(); master_itr != all_shadows.end(); master_itr++)
@@ -809,7 +809,7 @@ void InterbotixRobotXS::robot_init_operating_modes(void)
   {
     std::string name = group_itr->first.as<std::string>();
     YAML::Node single_group = all_groups[name];
-    std::string operating_mode = single_group["operating_mode"].as<std::string>(OP_MODE);
+    std::string operating_mode = operating_mode_forced == "" ? single_group["operating_mode"].as<std::string>(OP_MODE) : operating_mode_forced;
     std::string profile_type = single_group["profile_type"].as<std::string>(PROFILE_TYPE);
     int32_t profile_velocity = single_group["profile_velocity"].as<int32_t>(PROFILE_VELOCITY);
     int32_t profile_acceleration = single_group["profile_acceleration"].as<int32_t>(PROFILE_ACCELERATION);
@@ -823,7 +823,7 @@ void InterbotixRobotXS::robot_init_operating_modes(void)
   {
     std::string single_name = single_itr->first.as<std::string>();
     YAML::Node single_joint = all_singles[single_name];
-    std::string operating_mode = single_joint["operating_mode"].as<std::string>(OP_MODE);
+    std::string operating_mode = operating_mode_forced == "" ? single_joint["operating_mode"].as<std::string>(OP_MODE) : operating_mode_forced;
     std::string profile_type = single_joint["profile_type"].as<std::string>(PROFILE_TYPE);
     int32_t profile_velocity = single_joint["profile_velocity"].as<int32_t>(PROFILE_VELOCITY);
     int32_t profile_acceleration = single_joint["profile_acceleration"].as<int32_t>(PROFILE_ACCELERATION);
@@ -905,7 +905,20 @@ void InterbotixRobotXS::robot_sub_command_single(const interbotix_xs_msgs::Joint
 /// @details - refer to the message definition for details
 void InterbotixRobotXS::robot_sub_emergency(const std_msgs::Bool &msg)
 {
-  pause = !msg.data;
+  bool new_pause = !msg.data;
+  if(!pause && new_pause) {
+    for (auto key : group_map) {
+      std::vector<float> positions, velocities, efforts;
+      robot_get_joint_states(key.first, &positions, &velocities, &efforts);
+      robot_write_commands(key.first, positions);
+      //robot_init_operating_modes("velocity");
+    }
+  }
+  // else if(pause && !new_pause) {
+  //   robot_init_operating_modes();
+  // }
+
+  pause = new_pause;
 }
 
 /// @brief ROS Subscriber callback function to command a joint trajectory
