@@ -846,7 +846,7 @@ void InterbotixRobotXS::robot_init_subscribers(void)
   sub_command_group = node.subscribe("commands/joint_group", 5, &InterbotixRobotXS::robot_sub_command_group, this);
   sub_command_single = node.subscribe("commands/joint_single", 5, &InterbotixRobotXS::robot_sub_command_single, this);
   sub_command_traj = node.subscribe("commands/joint_trajectory", 5, &InterbotixRobotXS::robot_sub_command_traj, this);
-  sub_emergency = node.subscribe("/RosAria/motors_state", 5, &InterbotixRobotXS::robot_sub_emergency, this);
+  sub_emergency = node.subscribe("/emergency_button", 5, &InterbotixRobotXS::robot_sub_emergency, this);
 }
 
 /// @brief Initialize ROS Services
